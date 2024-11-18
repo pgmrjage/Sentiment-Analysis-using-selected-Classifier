@@ -1,50 +1,54 @@
-# Set working directory and load the dataset
 setwd("D:\\School Workspace\\Source Codes\\R Language\\Classifier")
 df <- read.csv("train_df.csv")
 
-# Inspect the structure of the data
 str(df)
 
-# Convert 'sentiment' to a factor variable (since it's categorical)
-df$sentiment <- factor(df$sentiment, levels = c("negative", "neutral", "positive"))
+df$sentiment <- factor(df$sentiment, levels = c("negative", "neutral", "positive")) # nolint
 
-# Split data into training and testing datasets
-df_1000 <- df[1:1000, ]  # Select first 1000 rows
+df_1000 <- df[1:1000, ]
 train_data <- df_1000[1:800, ]
 test_data <- df_1000[801:1000, ]
 
-# Summary of 'sentiment' count in the training data
 sentiment_count <- table(as.factor(train_data$sentiment))
 print(sentiment_count)
 
-# Let's say we want to predict the 'label' column based on the 'sentiment' column
-# Train a linear regression model
-mod <- lm(label ~ sentiment, data = train_data)
+library(randomForest)
+library(e1071)
+library(caret)
 
-# View summary of the linear model
-summary(mod)
+mod_rf <- randomForest(sentiment ~ label, data = train_data, ntree = 100)
+print(mod_rf)
 
-# Plot the linear regression model (diagnostic plots)
-plot(mod)
+mod_svm <- svm(sentiment ~ label, data = train_data, kernel = "linear")
+print(mod_svm)
 
+predictions_rf <- predict(mod_rf, test_data)
 
+predictions_svm <- predict(mod_svm, test_data)
 
-# Create a scatter plot of the 'label' against 'sentiment'
-# Convert 'sentiment' to a numeric factor for plotting
-train_data$sentiment_numeric <- as.numeric(train_data$sentiment)
+conf_matrix_rf <- confusionMatrix(predictions_rf, test_data$sentiment)
+conf_matrix_svm <- confusionMatrix(predictions_svm, test_data$sentiment)
 
-# Plot label vs sentiment
-plot(train_data$sentiment_numeric, train_data$label, 
-     xlab = "Sentiment", ylab = "Label", 
-     main = "Linear Regression: Sentiment vs Label", 
-     pch = 19, col = "blue")
+print("Confusion Matrix for Random Forest:")
+print(conf_matrix_rf)
 
-# Add the regression line
-abline(mod, col = "red", lwd = 2)  # This adds the regression line
+print("Confusion Matrix for SVM:")
+print(conf_matrix_svm)
 
-# Alternatively, using ggplot2 for a more advanced plot
-library(ggplot2)
-ggplot(train_data, aes(x = sentiment_numeric, y = label)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE, color = "red") +
-  labs(title = "Linear Regression: Sentiment vs Label", x = "Sentiment", y = "Label")
+precision_rf <- posPredValue(predictions_rf, test_data$sentiment, positive = "positive") # nolint
+recall_rf <- sensitivity(predictions_rf, test_data$sentiment, positive = "positive") # nolint
+
+precision_svm <- posPredValue(predictions_svm, test_data$sentiment, positive = "positive") # nolint
+recall_svm <- sensitivity(predictions_svm, test_data$sentiment, positive = "positive") # nolint
+
+cat("\nPrecision for 'positive' using Random Forest: ", precision_rf, "\n")
+cat("Recall for 'positive' using Random Forest: ", recall_rf, "\n")
+
+cat("\nPrecision for 'positive' using SVM: ", precision_svm, "\n")
+cat("Recall for 'positive' using SVM: ", recall_svm, "\n")
+
+print("Random Forest - Classification Report:")
+print(conf_matrix_rf$byClass)
+
+print("SVM - Classification Report:")
+print(conf_matrix_svm$byClass)
